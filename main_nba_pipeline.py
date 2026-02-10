@@ -115,12 +115,24 @@ def trenuj_a_uloz(df):
     print(f"Model i data úspěšně uloženy. Počet řádků: {len(df)}")
 
 # --- SPOUŠTĚČ ---
+# --- UPRAVENÝ SPOUŠTĚČ ---
 if __name__ == "__main__":
     try:
-        raw = stahni_data()
-        processed = priprav_data(raw)
-        final = vypocitej_elo(processed)
-        trenuj_a_uloz(final)
+        if os.path.exists('nba_data_final.csv'):
+            print("Detekován již zpracovaný soubor. Přeskakuji transformaci a jdu rovnou na trénink...")
+            final = pd.read_csv('nba_data_final.csv')
+            # Sjednotíme názvy na velká písmena pro jistotu
+            final.columns = [c.upper() for c in final.columns]
+            
+            # Pokud už máme sloupce ELO a ROLL_PTS, můžeme rovnou trénovat
+            trenuj_a_uloz(final)
+        else:
+            # Původní cesta pro případ, že soubor neexistuje a stahujeme z API
+            raw = stahni_data()
+            processed = priprav_data(raw)
+            final = vypocitej_elo(processed)
+            trenuj_a_uloz(final)
+            
         print("Vše proběhlo v pořádku!")
     except Exception as e:
         print(f"KRITICKÁ CHYBA: {e}")
