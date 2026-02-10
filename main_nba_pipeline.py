@@ -24,20 +24,29 @@ def stahni_data():
     # PRIORITA: Pokud existuje finální soubor nahraný ručně, použijeme ten
     if os.path.exists('nba_data_final.csv'):
         print("Nalezen nahraný soubor nba_data_final.csv. Používám jej pro výpočty...")
-        # Načteme surová data (pokud jsou tam sloupce z minula, vymažeme je, aby se přepočítaly znovu a správně)
         df = pd.read_csv('nba_data_final.csv')
+        
+        # --- OPRAVA NÁZVŮ SLOUPCŮ (tady byla chyba) ---
+        # Převedeme všechny názvy na velká písmena, aby to sedělo na TEAM_ID, PTS atd.
+        df.columns = [c.upper() for c in df.columns]
+        
+        # Odstraníme staré vypočítané sloupce, aby se vytvořily nové
         cols_to_drop = ['ROLL_PTS_HOME', 'ROLL_PTS_AWAY', 'ELO_HOME', 'ELO_AWAY', 'HOME_WIN']
         df = df.drop(columns=[c for c in cols_to_drop if c in df.columns])
+        
+        # Pokud tam TEAM_ID stále není, zkusíme ho vytvořit z TEAM (častá varianta v exportu)
+        if 'TEAM_ID' not in df.columns and 'TEAM' in df.columns:
+            df = df.rename(columns={'TEAM': 'TEAM_ID'})
+            
         return df
 
-    # ZÁLOHA: Pokus o stažení, pokud soubor neexistuje
+    # ZÁLOHA: Pokus o stažení
     print("Soubor nenalezen, zkouším stáhnout data z NBA API...")
     try:
         log = leaguegamelog.LeagueGameLog(season='2025-26', headers=HEADERS, timeout=60)
         return log.get_data_frames()[0]
     except Exception as e:
         print(f"Chyba při stahování: {e}")
-        # Pokud nemáme nic, vytvoříme aspoň prázdný DataFrame, ať to nepadne úplně
         return pd.DataFrame()
 
 # --- 2. TRANSFORMAČNÍ LOGIKA ---
