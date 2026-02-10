@@ -22,7 +22,7 @@ jobs:
           pip install pandas nba_api scikit-learn
 
       - name: Run data scraper
-        run: python app.py  # Změň na název tvého hlavního skriptu
+        run: python stahovac_nba.py  # Změň na název tvého hlavního skriptu
 
       - name: Commit and push if changed
         run: |
