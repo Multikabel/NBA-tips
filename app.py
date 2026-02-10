@@ -15,11 +15,19 @@ st.markdown("""
 st.title("🏀 NBA Smart Predictor 2026")
 st.markdown("Analýza zápasů založená na **Elo Ratingu** a **Rolling Averages** z aktuální sezóny.")
 
-@st.cache_data
+@st.cache_data(ttl=600) # Nastavíme expiraci cache na 10 minut
 def load_data():
-    df = pd.read_csv('nba_data_final.csv')
+    # Přidáme náhodný parametr za název souboru, abychom obešli mezipaměť GitHubu
+    file_url = "nba_data_final.csv"
+    df = pd.read_csv(file_url)
     df['GAME_DATE'] = pd.to_datetime(df['GAME_DATE'])
     return df
+
+# --- DIAGNOSTIKA (vlož hned pod načtení dat) ---
+df = load_data()
+st.sidebar.write("### 🔍 Diagnostika")
+st.sidebar.write(f"Počet řádků v CSV: {len(df)}")
+st.sidebar.write(f"Nejnovější datum: {df['GAME_DATE'].max()}")
 
 def get_latest_stats(df, team_name):
     team_matches = df[(df['TEAM_NAME_HOME'] == team_name) | (df['TEAM_NAME_AWAY'] == team_name)]
