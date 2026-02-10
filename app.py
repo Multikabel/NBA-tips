@@ -44,16 +44,16 @@ try:
     # (Pokud ho nemáš, necháme tvůj trénovací kód níže)
 
     # --- TVŮJ TRÉNOVACÍ BLOK (ponechán, pokud nepoužiješ .pkl) ---
-    @st.cache_resource
-    def train_all_models(data):
-        features = ['ROLL_PTS_HOME', 'ROLL_PTS_AWAY', 'ELO_HOME', 'ELO_AWAY']
-        X = data[features]
-        model_win = RandomForestClassifier(n_estimators=100, random_state=42).fit(X, data['HOME_WIN'])
-        model_pts_h = RandomForestRegressor(n_estimators=100, random_state=42).fit(X, data['PTS_HOME'])
-        model_pts_a = RandomForestRegressor(n_estimators=100, random_state=42).fit(X, data['PTS_AWAY'])
-        return model_win, model_pts_h, model_pts_a, features
+    # @st.cache_resource
+    # def train_all_models(data):
+    #    features = ['ROLL_PTS_HOME', 'ROLL_PTS_AWAY', 'ELO_HOME', 'ELO_AWAY']
+    #    X = data[features]
+    #    model_win = RandomForestClassifier(n_estimators=100, random_state=42).fit(X, data['HOME_WIN'])
+    #    model_pts_h = RandomForestRegressor(n_estimators=100, random_state=42).fit(X, data['PTS_HOME'])
+    #    model_pts_a = RandomForestRegressor(n_estimators=100, random_state=42).fit(X, data['PTS_AWAY'])
+    #    return model_win, model_pts_h, model_pts_a, features
 
-    model_win, model_pts_h, model_pts_a, features = train_all_models(df)
+    # model_win, model_pts_h, model_pts_a, features = train_all_models(df)
 
     # --- SIDEBAR VÝBĚR ---
     teams_list = sorted(df['TEAM_NAME_HOME'].unique())
