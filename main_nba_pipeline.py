@@ -8,20 +8,38 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 
 # --- 1. STAHOVÁNÍ DAT ---
+from nba_api.stats.endpoints import leaguegamelog
+
 def stahni_data(sezony=['2024-25', '2025-26']):
-    vsechny_tymy = teams.get_teams()
     seznam_zapasu = []
+    print(f"--- Start rychlého stahování NBA dat ---")
+
     for sezona_id in sezony:
-        for i, tym in enumerate(vsechny_tymy):
+        retries = 3
+        while retries > 0:
             try:
-                finder = leaguegamefinder.LeagueGameFinder(team_id_nullable=tym['id'], 
-                                                           season_nullable=sezona_id, 
-                                                           league_id_nullable='00')
-                seznam_zapasu.append(finder.get_data_frames()[0])
-                time.sleep(0.8) # Rychlejší, ale bezpečné
+                print(f"Stahuji celou sezónu {sezona_id}...", end=" ", flush=True)
+                # Stáhne všechny zápasy všech týmů jedním vrzem
+                log = leaguegamelog.LeagueGameLog(
+                    season=sezona_id,
+                    season_type_all_star='Regular Season'
+                )
+                df_sezona = log.get_data_frames()[0]
+                if not df_sezona.empty:
+                    seznam_zapasu.append(df_sezona)
+                    print(f"OK (staženo {len(df_sezona)} řádků)")
+                    time.sleep(2) # Malá pauza mezi sezónami
+                    break
             except Exception as e:
-                print(f"Chyba u {tym['full_name']}: {e}")
-    return pd.concat(seznam_zapasu).drop_duplicates(subset=['GAME_ID', 'TEAM_ID'])
+                retries -= 1
+                print(f"Chyba: {e}. Zkouším znovu... (zbývá {retries})")
+                time.sleep(5)
+        
+    if not seznam_zapasu:
+        raise ValueError("Nepodařilo se stáhnout žádná data z NBA API.")
+
+    full_df = pd.concat(seznam_zapasu).drop_duplicates(subset=['GAME_ID', 'TEAM_ID'])
+    return full_df
 
 # --- 2. TRANSFORMAČNÍ LOGIKA ---
 def priprav_data(raw_df):
