@@ -8,33 +8,34 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 
 # --- 1. STAHOVÁNÍ DAT ---
-import os
-
 def stahni_data():
-    # 1. Načteme loňská data z repozitáře (už tam jsou nahraná)
-    if os.path.exists('nba_data_2024.csv'):
-        df_2024 = pd.read_csv('nba_data_2024.csv')
-    else:
-        df_2024 = pd.DataFrame()
+    seznam_zapasu = []
+    # SEZONY MUSÍ OBSAHOVAT OBĚ - loňskou i letošní
+    sezony = ['2024-25', '2025-26'] 
+    
+    print(f"--- Start stahování NBA dat pro roky 2024-2026 ---")
 
-    # 2. Stáhneme POUZE letošní sezónu 2025-26
-    print("Stahuji aktuální sezónu 2025-26...")
-    try:
-        log = leaguegamelog.LeagueGameLog(
-            season='2025-26',
-            headers=HEADERS,
-            timeout=60
-        )
-        df_2025 = log.get_data_frames()[0]
-        
-        # 3. Spojíme to dohromady
-        full_df = pd.concat([df_2024, df_2025]).drop_duplicates(subset=['GAME_ID', 'TEAM_ID'])
-        print(f"Hotovo! Celkem máme {len(full_df)} zápasů.")
-        return full_df
-    except Exception as e:
-        print(f"Kritická chyba: {e}")
-        # Pokud letošek selže, vrátíme aspoň loňská data, ať pipeline nespadne úplně
-        return df_2024
+    for sezona_id in sezony:
+        try:
+            print(f"Stahuji sezónu {sezona_id}...", end=" ")
+            log = leaguegamelog.LeagueGameLog(
+                season=sezona_id,
+                headers=HEADERS, # Ty, co jsme přidali minule
+                timeout=60
+            )
+            df_sezona = log.get_data_frames()[0]
+            if not df_sezona.empty:
+                seznam_zapasu.append(df_sezona)
+                print(f"OK (staženo {len(df_sezona)} řádků)")
+        except Exception as e:
+            print(f"Chyba u sezóny {sezona_id}: {e}")
+
+    if not seznam_zapasu:
+        raise ValueError("Nepodařilo se stáhnout vůbec nic!")
+
+    # Spojíme to a odstraníme duplicity
+    full_df = pd.concat(seznam_zapasu).drop_duplicates(subset=['GAME_ID', 'TEAM_ID'])
+    return full_df
 
 # --- 2. TRANSFORMAČNÍ LOGIKA ---
 def priprav_data(raw_df):
