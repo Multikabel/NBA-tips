@@ -1,43 +1,37 @@
 import pandas as pd
 import time
-from nba_api.stats.static import teams
-from nba_api.stats.endpoints import leaguegamefinder
+from nba_api.stats.endpoints import leaguegamelog
 
-def stahni_sezonu_bezpecne(sezona_id='2024-25'):
-    vsechny_tymy = teams.get_teams()
-    seznam_zapasu = []
+def stahni_aktualni_data():
+    # Dynamicky nastavíme sezónu podle aktuálního data (únor 2026 -> 2025-26)
+    sezona_id = '2025-26' 
+    
+    print(f"--- Start stahování NBA dat pro sezónu {sezona_id} ---")
 
-    print(f"--- Start stahování sezóny {sezona_id} ---")
-
-    for i, tym in enumerate(vsechny_tymy):
-        try:
-            print(f"[{i+1}/30] Stahuji: {tym['full_name']}...", end=" ", flush=True)
+    try:
+        # LeagueGameLog stáhne VŠECHNY zápasy celé ligy jedním požadavkem
+        # Je to mnohem bezpečnější pro GitHub Actions (nehrozí Rate Limit)
+        log = leaguegamelog.LeagueGameLog(
+            season=sezona_id,
+            season_type_all_star='Regular Season'
+        )
+        df = log.get_data_frames()[0]
+        
+        if not df.empty:
+            df['GAME_DATE'] = pd.to_datetime(df['GAME_DATE'])
             
-            finder = leaguegamefinder.LeagueGameFinder(
-                team_id_nullable=tym['id'],
-                season_nullable=sezona_id,
-                league_id_nullable='00'
-            )
+            # Uložíme jako nba_data_raw.csv (aby to sedělo na tvůj YAML)
+            file_name = 'nba_data_raw.csv'
+            df.to_csv(file_name, index=False)
             
-            tym_zapas = finder.get_data_frames()[0]
-            seznam_zapasu.append(tym_zapas)
-            print("OK")
-            
-            # Trochu delší pauza pro jistotu
-            time.sleep(1.5) 
-            
-        except Exception as e:
-            print(f"CHYBA u {tym['full_name']}: {e}")
-            time.sleep(5) # Při chybě počkáme déle
-            continue
+            print(f"Úspěch! Staženo {len(df)} řádků.")
+            print(f"Soubor uložen v: {os.path.abspath(file_name)}")
+        else:
+            print("API vrátilo prázdnou tabulku. Zkontroluj ID sezóny.")
 
-    if seznam_zapasu:
-        df = pd.concat(seznam_zapasu).reset_index(drop=True)
-        df['GAME_DATE'] = pd.to_datetime(df['GAME_DATE'])
-        # Uložíme hned, jakmile máme alespoň něco
-        df.to_csv('nba_data_raw.csv', index=False)
-        print(f"\nHotovo! Uloženo {len(df)} řádků do 'nba_data_raw.csv'.")
-    else:
-        print("\nNepodařilo se stáhnout žádná data.")
+    except Exception as e:
+        print(f"Kritická chyba při stahování: {e}")
 
-stahni_sezonu_bezpecne()
+if __name__ == "__main__":
+    import os
+    stahni_aktualni_data()
