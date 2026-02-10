@@ -1,37 +1,28 @@
-name: NBA Data Update
-
+name: NBA Prediction Update
 on:
   schedule:
     - cron: '0 6 * * *'
   workflow_dispatch:
 
 jobs:
-  update:
+  build:
     runs-on: ubuntu-latest
-    # TADY JE TA ZMĚNA:
     permissions:
-      contents: write
-      
+      contents: write # Zásadní pro možnost uložení souborů
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4 # Update na v4
-
+      - uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-
       - name: Install dependencies
+        run: pip install pandas nba_api scikit-learn joblib
+      - name: Run Pipeline
+        run: python main_nba_pipeline.py
+      - name: Commit and Push
         run: |
-          pip install pandas nba_api scikit-learn
-
-      - name: Run data scraper
-        run: python stahovac_nba.py
-
-      - name: Commit and push if changed
-        run: |
-          git config --local user.name "github-actions[bot]"
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          # Přidáme raději vše, co skript mohl vytvořit/změnit
-          git add . 
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Automatická aktualizace dat" && git push)
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add nba_data_final.csv nba_model.pkl
+          git commit -m "Auto-update NBA Model $(date +'%Y-%m-%d')" || exit 0
+          git push
