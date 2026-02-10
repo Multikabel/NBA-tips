@@ -1,6 +1,11 @@
 import streamlit as st
 import pandas as pd
-import joblib # Pro načítání předtrénovaného modelu
+import joblib
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor # <--- TADY JE TA OPRAVA
+
+# --- NASTAVENÍ STRÁNKY ---
+st.set_page_config(page_title="NBA AI Predictor 2026", layout="wide", page_icon="🏀")
+# ... zbytek kódu
 
 # --- NAČTENÍ DAT A MODELU ---
 @st.cache_data
