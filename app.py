@@ -8,6 +8,7 @@ st.set_page_config(page_title="NBA AI Predictor 2026", layout="wide", page_icon=
 # ... zbytek kódu
 
 # --- NAČTENÍ DAT A MODELU ---
+# --- NAČTENÍ DAT A MODELU ---
 @st.cache_data
 def load_data():
     df = pd.read_csv('nba_data_final.csv')
@@ -15,45 +16,41 @@ def load_data():
     return df
 
 def get_latest_stats(df, team_name):
-    """
-    Najde poslední známé Elo a Rolling Stats pro tým bez ohledu na to, 
-    jestli hrál naposledy doma nebo venku.
-    """
-    # Vyfiltrujeme všechny zápasy týmu (doma i venku)
     team_matches = df[(df['TEAM_NAME_HOME'] == team_name) | (df['TEAM_NAME_AWAY'] == team_name)]
     last_match = team_matches.sort_values('GAME_DATE').iloc[-1]
     
+    # OPRAVA: Změněno z ROLLING_PTS na ROLL_PTS
     if last_match['TEAM_NAME_HOME'] == team_name:
         return {
             'ELO': last_match['ELO_HOME'],
-            'ROLLING_PTS': last_match['ROLLING_PTS_HOME']
+            'ROLL_PTS': last_match['ROLL_PTS_HOME']
         }
     else:
         return {
             'ELO': last_match['ELO_AWAY'],
-            'ROLLING_PTS': last_match['ROLLING_PTS_AWAY']
+            'ROLL_PTS': last_match['ROLL_PTS_AWAY']
         }
 
 # --- HLAVNÍ LOGIKA ---
 try:
     df = load_data()
     
-    # Místo trénování v aplikaci doporučuji načíst ten .pkl z GitHubu
-    # Je to rychlejší a aplikace se nebude sekat
-    model_win = joblib.load('nba_model.pkl') 
-    # (Pokud ho nemáš, necháme tvůj trénovací kód níže)
+    # Musíme definovat features, aby model věděl, co do něj leze
+    features = ['ROLL_PTS_HOME', 'ROLL_PTS_AWAY', 'ELO_HOME', 'ELO_AWAY']
 
-    # --- TVŮJ TRÉNOVACÍ BLOK (ponechán, pokud nepoužiješ .pkl) ---
-    # @st.cache_resource
-    # def train_all_models(data):
-    #    features = ['ROLL_PTS_HOME', 'ROLL_PTS_AWAY', 'ELO_HOME', 'ELO_AWAY']
-    #    X = data[features]
-    #    model_win = RandomForestClassifier(n_estimators=100, random_state=42).fit(X, data['HOME_WIN'])
-    #    model_pts_h = RandomForestRegressor(n_estimators=100, random_state=42).fit(X, data['PTS_HOME'])
-    #    model_pts_a = RandomForestRegressor(n_estimators=100, random_state=42).fit(X, data['PTS_AWAY'])
-    #    return model_win, model_pts_h, model_pts_a, features
+    # Pokud používáš joblib, musíš načíst všechny tři modely, které tvoje UI vyžaduje
+    # Předpokládám, že tvoje pipeline ukládá jen model_win. 
+    # Pro jednoduchost teď necháme trénování v aplikaci zapnuté, dokud neupravíme pipeline na ukládání všech 3 modelů.
+    
+    @st.cache_resource
+    def train_all_models(data):
+        X = data[features]
+        m_win = RandomForestClassifier(n_estimators=100, random_state=42).fit(X, data['HOME_WIN'])
+        m_h = RandomForestRegressor(n_estimators=100, random_state=42).fit(X, data['PTS_HOME'])
+        m_a = RandomForestRegressor(n_estimators=100, random_state=42).fit(X, data['PTS_AWAY'])
+        return m_win, m_h, m_a
 
-    # model_win, model_pts_h, model_pts_a, features = train_all_models(df)
+    model_win, model_pts_h, model_pts_a = train_all_models(df)
 
     # --- SIDEBAR VÝBĚR ---
     teams_list = sorted(df['TEAM_NAME_HOME'].unique())
@@ -61,25 +58,28 @@ try:
     away_team = st.sidebar.selectbox("🚀 Hostující tým", teams_list, index=1)
 
     if home_team != away_team:
-        # ZÍSKÁNÍ SKUTEČNĚ AKTUÁLNÍCH DAT
         stats_h = get_latest_stats(df, home_team)
         stats_a = get_latest_stats(df, away_team)
 
+        # Příprava vstupu (názvy sloupců musí přesně sedět na 'features')
         input_df = pd.DataFrame([[
-            stats_h['ROLLING_PTS'], 
-            stats_a['ROLLING_PTS'], 
+            stats_h['ROLL_PTS'], 
+            stats_a['ROLL_PTS'], 
             stats_h['ELO'], 
             stats_a['ELO']
         ]], columns=features)
 
-        # VÝPOČTY (tvoje logika)
+        # VÝPOČTY
         prob_home = model_win.predict_proba(input_df)[0][1]
         pred_h_pts = model_pts_h.predict(input_df)[0]
         pred_a_pts = model_pts_a.predict(input_df)[0]
 
-        # --- UI DISPLAY (viz tvůj kód) ---
-        # ... (zde pokračuje tvoje hezké UI se sloupci a progress bary)
-        st.success(f"Analýza pro zápas {home_team} vs {away_team} připravena.")
+        # Zobrazení (tady pokračuje tvůj kód s progress bary...)
+        st.success(f"Analýza hotova pro: {home_team} vs {away_team}")
+        
+        # Malý test pro tebe:
+        if "Detroit" in home_team or "Detroit" in away_team:
+            st.warning("⚠️ Pozor, Detroit má letos brutální formu!")
 
 except Exception as e:
     st.error(f"Chyba: {e}")
