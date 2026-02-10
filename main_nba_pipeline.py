@@ -20,34 +20,34 @@ HEADERS = {
 }
 
 # --- 1. STAHOVÁNÍ DAT ---
+import os
+
 def stahni_data():
-    seznam_zapasu = []
-    # SEZONY MUSÍ OBSAHOVAT OBĚ - loňskou i letošní
-    sezony = ['2024-25', '2025-26'] 
-    
-    print(f"--- Start stahování NBA dat pro roky 2024-2026 ---")
+    # 1. Načteme historii z repozitáře (kterou jsi tam nahrál v kroku 1)
+    if os.path.exists('nba_data_history.csv'):
+        df_history = pd.read_csv('nba_data_history.csv')
+    else:
+        df_history = pd.DataFrame()
 
-    for sezona_id in sezony:
-        try:
-            print(f"Stahuji sezónu {sezona_id}...", end=" ")
-            log = leaguegamelog.LeagueGameLog(
-                season=sezona_id,
-                headers=HEADERS, # Ty, co jsme přidali minule
-                timeout=60
-            )
-            df_sezona = log.get_data_frames()[0]
-            if not df_sezona.empty:
-                seznam_zapasu.append(df_sezona)
-                print(f"OK (staženo {len(df_sezona)} řádků)")
-        except Exception as e:
-            print(f"Chyba u sezóny {sezona_id}: {e}")
-
-    if not seznam_zapasu:
-        raise ValueError("Nepodařilo se stáhnout vůbec nic!")
-
-    # Spojíme to a odstraníme duplicity
-    full_df = pd.concat(seznam_zapasu).drop_duplicates(subset=['GAME_ID', 'TEAM_ID'])
-    return full_df
+    # 2. Zkusíme stáhnout POUZE letošek (mnohem menší balík dat)
+    print("Stahuji aktuální sezónu 2025-26...")
+    try:
+        log = leaguegamelog.LeagueGameLog(
+            season='2025-26',
+            headers=HEADERS,
+            timeout=60
+        )
+        df_now = log.get_data_frames()[0]
+        
+        # Spojíme historii a letošek
+        full_df = pd.concat([df_history, df_now]).drop_duplicates(subset=['GAME_ID', 'TEAM_ID'])
+        print(f"Úspěch! Celkem máme {len(full_df)} zápasů.")
+        return full_df
+        
+    except Exception as e:
+        print(f"NBA API stále blokuje GitHub: {e}")
+        # Pokud letošek selže, vrátíme aspoň historii, ať pipeline nespadne
+        return df_history
 
 # --- 2. TRANSFORMAČNÍ LOGIKA ---
 def priprav_data(raw_df):
