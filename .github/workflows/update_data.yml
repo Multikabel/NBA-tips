@@ -2,15 +2,19 @@ name: NBA Data Update
 
 on:
   schedule:
-    - cron: '0 6 * * *' # Spustí se každý den ve 6:00 ráno
-  workflow_dispatch: # Umožní ti spustit stahování ručně tlačítkem na GitHubu
+    - cron: '0 6 * * *'
+  workflow_dispatch:
 
 jobs:
   update:
     runs-on: ubuntu-latest
+    # TADY JE TA ZMĚNA:
+    permissions:
+      contents: write
+      
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4 # Update na v4
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -22,11 +26,12 @@ jobs:
           pip install pandas nba_api scikit-learn
 
       - name: Run data scraper
-        run: python stahovac_nba.py  # Změň na název tvého hlavního skriptu
+        run: python stahovac_nba.py
 
       - name: Commit and push if changed
         run: |
-          git config --global user.name "GitHub Action"
-          git config --global user.email "action@github.com"
-          git add nba_data_final.csv
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          # Přidáme raději vše, co skript mohl vytvořit/změnit
+          git add . 
           git diff --quiet && git diff --staged --quiet || (git commit -m "Automatická aktualizace dat" && git push)
