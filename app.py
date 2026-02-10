@@ -41,7 +41,7 @@ try:
     # --- TVŮJ TRÉNOVACÍ BLOK (ponechán, pokud nepoužiješ .pkl) ---
     @st.cache_resource
     def train_all_models(data):
-        features = ['ROLLING_PTS_HOME', 'ROLLING_PTS_AWAY', 'ELO_HOME', 'ELO_AWAY']
+        features = ['ROLL_PTS_HOME', 'ROLL_PTS_AWAY', 'ELO_HOME', 'ELO_AWAY']
         X = data[features]
         model_win = RandomForestClassifier(n_estimators=100, random_state=42).fit(X, data['HOME_WIN'])
         model_pts_h = RandomForestRegressor(n_estimators=100, random_state=42).fit(X, data['PTS_HOME'])
