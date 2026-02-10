@@ -9,34 +9,48 @@ from sklearn.ensemble import RandomForestClassifier
 
 # --- 1. STAHOVÁNÍ DAT ---
 from nba_api.stats.endpoints import leaguegamelog
+import time
+
+# Definujeme hlavičky, aby nás API nevykoplo
+HEADERS = {
+    'Host': 'stats.nba.com',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'en-US,en;q=0.5',
+    'Referer': 'https://www.nba.com/',
+    'Connection': 'keep-alive',
+}
 
 def stahni_data(sezony=['2024-25', '2025-26']):
     seznam_zapasu = []
-    print(f"--- Start rychlého stahování NBA dat ---")
+    print(f"--- Start stahování s Headers ---")
 
     for sezona_id in sezony:
-        retries = 3
+        retries = 5 # Zvýšíme počet pokusů
         while retries > 0:
             try:
-                print(f"Stahuji celou sezónu {sezona_id}...", end=" ", flush=True)
-                # Stáhne všechny zápasy všech týmů jedním vrzem
+                print(f"Stahuji {sezona_id}...", end=" ", flush=True)
+                
+                # PŘIDÁVÁME HEADERS A TIMEOUT
                 log = leaguegamelog.LeagueGameLog(
                     season=sezona_id,
-                    season_type_all_star='Regular Season'
+                    season_type_all_star='Regular Season',
+                    headers=HEADERS,
+                    timeout=60  # Prodloužíme čekání na 60 sekund
                 )
+                
                 df_sezona = log.get_data_frames()[0]
                 if not df_sezona.empty:
                     seznam_zapasu.append(df_sezona)
-                    print(f"OK (staženo {len(df_sezona)} řádků)")
-                    time.sleep(2) # Malá pauza mezi sezónami
+                    print(f"OK ({len(df_sezona)} řádků)")
+                    time.sleep(5) # Delší pauza mezi sezónami, abychom je nenaštvali
                     break
             except Exception as e:
                 retries -= 1
-                print(f"Chyba: {e}. Zkouším znovu... (zbývá {retries})")
-                time.sleep(5)
-        
-    if not seznam_zapasu:
-        raise ValueError("Nepodařilo se stáhnout žádná data z NBA API.")
+                print(f"Chyba: {e}. Zkouším znovu za 10s...")
+                time.sleep(10)
+    
+    # ... zbytek funkce (concat atd.)
 
     full_df = pd.concat(seznam_zapasu).drop_duplicates(subset=['GAME_ID', 'TEAM_ID'])
     return full_df
