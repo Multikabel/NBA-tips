@@ -19,38 +19,32 @@ HEADERS = {
     'Cache-Control': 'no-cache',
 }
 
-# --- 1. STAHOVÁNÍ DAT ---
-import os
-
+# --- 1. INTELIGENTNÍ NAČÍTÁNÍ DAT ---
 def stahni_data():
-    # 1. Načteme historii z repozitáře (kterou jsi tam nahrál v kroku 1)
-    if os.path.exists('nba_data_history.csv'):
-        df_history = pd.read_csv('nba_data_history.csv')
-    else:
-        df_history = pd.DataFrame()
+    # PRIORITA: Pokud existuje finální soubor nahraný ručně, použijeme ten
+    if os.path.exists('nba_data_final.csv'):
+        print("Nalezen nahraný soubor nba_data_final.csv. Používám jej pro výpočty...")
+        # Načteme surová data (pokud jsou tam sloupce z minula, vymažeme je, aby se přepočítaly znovu a správně)
+        df = pd.read_csv('nba_data_final.csv')
+        cols_to_drop = ['ROLL_PTS_HOME', 'ROLL_PTS_AWAY', 'ELO_HOME', 'ELO_AWAY', 'HOME_WIN']
+        df = df.drop(columns=[c for c in cols_to_drop if c in df.columns])
+        return df
 
-    # 2. Zkusíme stáhnout POUZE letošek (mnohem menší balík dat)
-    print("Stahuji aktuální sezónu 2025-26...")
+    # ZÁLOHA: Pokus o stažení, pokud soubor neexistuje
+    print("Soubor nenalezen, zkouším stáhnout data z NBA API...")
     try:
-        log = leaguegamelog.LeagueGameLog(
-            season='2025-26',
-            headers=HEADERS,
-            timeout=60
-        )
-        df_now = log.get_data_frames()[0]
-        
-        # Spojíme historii a letošek
-        full_df = pd.concat([df_history, df_now]).drop_duplicates(subset=['GAME_ID', 'TEAM_ID'])
-        print(f"Úspěch! Celkem máme {len(full_df)} zápasů.")
-        return full_df
-        
+        log = leaguegamelog.LeagueGameLog(season='2025-26', headers=HEADERS, timeout=60)
+        return log.get_data_frames()[0]
     except Exception as e:
-        print(f"NBA API stále blokuje GitHub: {e}")
-        # Pokud letošek selže, vrátíme aspoň historii, ať pipeline nespadne
-        return df_history
+        print(f"Chyba při stahování: {e}")
+        # Pokud nemáme nic, vytvoříme aspoň prázdný DataFrame, ať to nepadne úplně
+        return pd.DataFrame()
 
 # --- 2. TRANSFORMAČNÍ LOGIKA ---
 def priprav_data(raw_df):
+    if raw_df.empty:
+        raise ValueError("Žádná data k dispozici!")
+        
     raw_df['GAME_DATE'] = pd.to_datetime(raw_df['GAME_DATE'])
     raw_df = raw_df.sort_values('GAME_DATE')
 
@@ -66,11 +60,15 @@ def priprav_data(raw_df):
     
     df = pd.merge(home, away, on=['GAME_ID', 'GAME_DATE'])
     df['HOME_WIN'] = (df['WL_HOME'] == 'W').astype(int)
+    
+    # Vyhodíme řádky, kde ještě nemáme dost historie pro Rolling Stats
     return df.dropna(subset=['ROLL_PTS_HOME', 'ROLL_PTS_AWAY'])
 
-# --- 3. TVOJE ELO FUNKCE ---
+# --- 3. ELO FUNKCE ---
 def vypocitej_elo(df):
-    elo_dict = {team: 1500 for team in pd.concat([df['TEAM_NAME_HOME'], df['TEAM_NAME_AWAY']]).unique()}
+    # Inicializace Elo pro všechny týmy
+    teams_list = pd.concat([df['TEAM_NAME_HOME'], df['TEAM_NAME_AWAY']]).unique()
+    elo_dict = {team: 1500 for team in teams_list}
     K = 20
     elo_home_list, elo_away_list = [], []
 
@@ -101,11 +99,15 @@ def trenuj_a_uloz(df):
     
     joblib.dump(model, 'nba_model.pkl')
     df.to_csv('nba_data_final.csv', index=False)
-    print("Model i data úspěšně uloženy.")
+    print(f"Model i data úspěšně uloženy. Počet řádků: {len(df)}")
 
 # --- SPOUŠTĚČ ---
 if __name__ == "__main__":
-    raw = stahni_data()
-    processed = priprav_data(raw)
-    final = vypocitej_elo(processed)
-    trenuj_a_uloz(final)
+    try:
+        raw = stahni_data()
+        processed = priprav_data(raw)
+        final = vypocitej_elo(processed)
+        trenuj_a_uloz(final)
+        print("Vše proběhlo v pořádku!")
+    except Exception as e:
+        print(f"KRITICKÁ CHYBA: {e}")
