@@ -3,7 +3,7 @@ import time
 import os
 import joblib
 from nba_api.stats.static import teams
-from nba_api.stats.endpoints import leaguegamefinder
+from nba_api.stats.endpoints import leaguegamelog
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 
