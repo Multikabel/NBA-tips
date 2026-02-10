@@ -115,19 +115,27 @@ def trenuj_a_uloz(df):
     print(f"Model i data úspěšně uloženy. Počet řádků: {len(df)}")
 
 # --- SPOUŠTĚČ ---
-# --- UPRAVENÝ SPOUŠTĚČ ---
+# --- FINÁLNÍ OPRAVENÝ SPOUŠTĚČ ---
 if __name__ == "__main__":
     try:
         if os.path.exists('nba_data_final.csv'):
-            print("Detekován již zpracovaný soubor. Přeskakuji transformaci a jdu rovnou na trénink...")
-            final = pd.read_csv('nba_data_final.csv')
-            # Sjednotíme názvy na velká písmena pro jistotu
-            final.columns = [c.upper() for c in final.columns]
+            print("Nalezen soubor nba_data_final.csv. Kontroluji sloupce...")
+            df_check = pd.read_csv('nba_data_final.csv')
+            df_check.columns = [c.upper() for c in df_check.columns]
             
-            # Pokud už máme sloupce ELO a ROLL_PTS, můžeme rovnou trénovat
-            trenuj_a_uloz(final)
+            # Kontrola, jestli máme sloupce pro trénink
+            needed_cols = ['ROLL_PTS_HOME', 'ROLL_PTS_AWAY', 'ELO_HOME', 'ELO_AWAY']
+            if all(col in df_check.columns for col in needed_cols):
+                print("Soubor je kompletní, jdu na trénink.")
+                trenuj_a_uloz(df_check)
+            else:
+                print("Soubor nalezen, ale chybí sloupce (Elo/Roll). Spouštím výpočet...")
+                # Tady je ten trik: pokud sloupce chybí, spustíme transformaci na tom, co máme
+                processed = priprav_data(df_check)
+                final = vypocitej_elo(processed)
+                trenuj_a_uloz(final)
         else:
-            # Původní cesta pro případ, že soubor neexistuje a stahujeme z API
+            print("Soubor nenalezen, stahuji z API...")
             raw = stahni_data()
             processed = priprav_data(raw)
             final = vypocitej_elo(processed)
