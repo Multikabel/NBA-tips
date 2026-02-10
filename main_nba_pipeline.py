@@ -75,7 +75,10 @@ def priprav_data(raw_df):
     df['HOME_WIN'] = (df['WL_HOME'] == 'W').astype(int)
     
     # Vyhodíme řádky, kde ještě nemáme dost historie pro Rolling Stats
-    return df.dropna(subset=['ROLL_PTS_HOME', 'ROLL_PTS_AWAY'])
+    # Použij toto:
+    df['ROLL_PTS_HOME'] = df['ROLL_PTS_HOME'].fillna(df['PTS_HOME'].mean())
+    df['ROLL_PTS_AWAY'] = df['ROLL_PTS_AWAY'].fillna(df['PTS_AWAY'].mean())
+    return df
 
 # --- 3. ELO FUNKCE ---
 def vypocitej_elo(df):
