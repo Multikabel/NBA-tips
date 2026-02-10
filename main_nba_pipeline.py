@@ -21,32 +21,36 @@ HEADERS = {
 
 # --- 1. INTELIGENTNÍ NAČÍTÁNÍ DAT ---
 def stahni_data():
-    # PRIORITA: Pokud existuje finální soubor nahraný ručně, použijeme ten
+    # PRIORITA: Použijeme nahraný soubor
     if os.path.exists('nba_data_final.csv'):
-        print("Nalezen nahraný soubor nba_data_final.csv. Používám jej pro výpočty...")
+        print("Nalezen nahraný soubor nba_data_final.csv. Používám jej...")
         df = pd.read_csv('nba_data_final.csv')
         
-        # --- OPRAVA NÁZVŮ SLOUPCŮ (tady byla chyba) ---
-        # Převedeme všechny názvy na velká písmena, aby to sedělo na TEAM_ID, PTS atd.
+        # 1. SJEDNOCENÍ NÁZVŮ: Převedeme vše na velká písmena (vyřeší team_id vs TEAM_ID)
         df.columns = [c.upper() for c in df.columns]
         
-        # Odstraníme staré vypočítané sloupce, aby se vytvořily nové
-        cols_to_drop = ['ROLL_PTS_HOME', 'ROLL_PTS_AWAY', 'ELO_HOME', 'ELO_AWAY', 'HOME_WIN']
+        # 2. KONTROLA TEAM_ID: Pokud tam není, zkusíme najít náhradní sloupce
+        if 'TEAM_ID' not in df.columns:
+            if 'TEAM' in df.columns:
+                df = df.rename(columns={'TEAM': 'TEAM_ID'})
+            elif 'ID' in df.columns:
+                df = df.rename(columns={'ID': 'TEAM_ID'})
+            else:
+                # Pokud TEAM_ID chybí, vypíšeme dostupné sloupce pro debug
+                print(f"Varování: TEAM_ID nenalezen. Dostupné sloupce: {df.columns.tolist()}")
+        
+        # Odstraníme staré vypočítané sloupce, aby se vypočítaly čerstvě
+        cols_to_drop = ['ROLL_PTS_HOME', 'ROLL_PTS_AWAY', 'ELO_HOME', 'ELO_AWAY', 'HOME_WIN', 'ROLL_PTS']
         df = df.drop(columns=[c for c in cols_to_drop if c in df.columns])
         
-        # Pokud tam TEAM_ID stále není, zkusíme ho vytvořit z TEAM (častá varianta v exportu)
-        if 'TEAM_ID' not in df.columns and 'TEAM' in df.columns:
-            df = df.rename(columns={'TEAM': 'TEAM_ID'})
-            
         return df
 
-    # ZÁLOHA: Pokus o stažení
-    print("Soubor nenalezen, zkouším stáhnout data z NBA API...")
+    # ZÁLOHA: Stažení z API
     try:
         log = leaguegamelog.LeagueGameLog(season='2025-26', headers=HEADERS, timeout=60)
         return log.get_data_frames()[0]
     except Exception as e:
-        print(f"Chyba při stahování: {e}")
+        print(f"API Error: {e}")
         return pd.DataFrame()
 
 # --- 2. TRANSFORMAČNÍ LOGIKA ---
