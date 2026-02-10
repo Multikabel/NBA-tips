@@ -35,7 +35,7 @@ try:
     
     # Místo trénování v aplikaci doporučuji načíst ten .pkl z GitHubu
     # Je to rychlejší a aplikace se nebude sekat
-    # model_win = joblib.load('nba_model.pkl') 
+    model_win = joblib.load('nba_model.pkl') 
     # (Pokud ho nemáš, necháme tvůj trénovací kód níže)
 
     # --- TVŮJ TRÉNOVACÍ BLOK (ponechán, pokud nepoužiješ .pkl) ---
